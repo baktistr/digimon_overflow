@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CMGR Automated Solver for Digimon Digital Adventure
+CMGR Automated Solver for Digimon Overflow
 This solver is designed to work with the CMGR framework for picoCTF
 """
 

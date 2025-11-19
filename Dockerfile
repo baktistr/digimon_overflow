@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     make \
     gdb \
     socat \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create challenge directory
@@ -18,9 +19,10 @@ WORKDIR /challenge
 # Copy challenge files
 COPY digimon.c /challenge/
 COPY Makefile /challenge/
+COPY setup-challenge.py /challenge/
 
-# Create flag file with provided FLAG
-RUN echo "${FLAG}" > /challenge/flag.txt
+# Run setup script to create flag and metadata
+RUN FLAG="${FLAG}" python3 /challenge/setup-challenge.py
 
 # Compile the binary
 RUN make

@@ -1,4 +1,4 @@
-# Makefile for Digimon Digital Adventure CTF Challenge
+# Makefile for Digimon Overflow CTF Challenge
 
 # Compiler settings
 CC = gcc
@@ -73,7 +73,7 @@ disasm: $(TARGET)
 # Show symbols
 symbols: $(TARGET)
 	@echo "[*] Showing symbols in $(TARGET)..."
-	@nm $(TARGET) | grep -E "(omegamon|agumon|metalgreymon|main)"
+	@nm $(TARGET) | grep -E "(agumon|greymon|wargreymon|main)"
 
 # Docker targets
 docker-build:
@@ -114,7 +114,7 @@ info: $(TARGET)
 
 # Help menu
 help:
-	@echo "Digimon Digital Adventure - CTF Challenge Makefile"
+	@echo "Digimon Overflow - CTF Challenge Makefile"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make              - Compile the binary (default)"
