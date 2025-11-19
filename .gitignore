@@ -1,0 +1,41 @@
+# Compiled binaries
+digimon
+*.o
+*.out
+*.exe
+
+# Flag file (keep secret!)
+flag.txt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+
+# Test payloads
+payload
+exploit
+*.bin
