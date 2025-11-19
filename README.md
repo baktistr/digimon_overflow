@@ -261,6 +261,7 @@ EOF
 
 
 ## Disclaimer
+
 The Digimon name, characters,and all related materials are the property of Bandai Co., Ltd. and its respective owners
 ---
 
