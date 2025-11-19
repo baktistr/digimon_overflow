@@ -43,4 +43,4 @@ USER ctf
 EXPOSE 9999
 
 # Start the challenge service
-CMD ["socat", "TCP-LISTEN:9999,reuseaddr,fork", "EXEC:/challenge/digimon"]
+CMD ["socat", "TCP-LISTEN:9999,reuseaddr,fork", "EXEC:/challenge/digimon,pty,stderr,setsid,sigint,sane"]
