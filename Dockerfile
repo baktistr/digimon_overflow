@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+# Accept FLAG as build argument (CMGR will provide this)
+ARG FLAG=picoCTF{test_flag_please_ignore}
+
 # Install necessary packages
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -14,8 +17,10 @@ WORKDIR /challenge
 
 # Copy challenge files
 COPY digimon.c /challenge/
-COPY flag.txt /challenge/
 COPY Makefile /challenge/
+
+# Create flag file with provided FLAG
+RUN echo "${FLAG}" > /challenge/flag.txt
 
 # Compile the binary
 RUN make

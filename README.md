@@ -1,325 +1,267 @@
-# 🎮 Digimon Digital Adventure - CTF Challenge
+# Digimon Overflow - CTF Challenge for 18-739D Class @CMU
 
-A Capture The Flag (CTF) binary exploitation challenge featuring heap overflow exploitation with an interactive Digimon-themed interface.
+A binary exploitation challenge for 18-739D Class @CMU featuring heap overflow and function pointer hijacking with an interactive Digimon-themed interface.
 
-## 📋 Overview
+## Challenge Information
 
-**Challenge Type:** Binary Exploitation (Pwn)
-**Difficulty:** Medium
-**Topic:** Heap Buffer Overflow, Function Pointer Hijacking
-**Theme:** Digimon Digital World Adventure
+- **Name:** Digimon Overflow
+- **Category:** Binary Exploitation (Pwn)
+- **Difficulty:** Medium
+- **Points:** 400
+- **Platform:** picoCTF (CMGR compatible)
 
-Players must exploit a heap buffer overflow vulnerability to redirect program execution and unlock the legendary Omegamon, revealing the flag.
+## Overview
 
-## 🎯 Challenge Features
+Players partner with Agumon and train it through an interactive menu system. To capture the flag, they must discover and exploit a heap buffer overflow vulnerability during the digivolution process to trigger the legendary WarGreymon and reveal the hidden flag.
 
-### Interactive Gameplay
-Unlike basic CTF challenges, this features a full interactive menu system:
-- **Name your Digimon** - Set your partner's name (vulnerable input!)
-- **Training system** - Increase stats and experience
-- **Status viewer** - Check your Digimon's current state
-- **Battle mode** - Trigger the function pointer (exploitation point)
-- **Multiple functions** - Three different Digimon functions to discover
-
-### Educational Value
-This challenge teaches:
-- ✅ Heap memory allocation and layout
-- ✅ Buffer overflow exploitation beyond stack overflows
+### Learning Objectives
+- ✅ Heap memory layout and allocation patterns
+- ✅ Buffer overflow exploitation beyond the stack
 - ✅ Function pointer hijacking techniques
-- ✅ Using GDB for dynamic analysis
-- ✅ Calculating precise memory offsets
-- ✅ Interactive exploitation with menu systems
+- ✅ Distinguishing safe vs unsafe string functions
+- ✅ Using GDB for dynamic binary analysis
+- ✅ Calculating precise memory offsets for exploitation
 
-## 🚀 Quick Start
+## Repository Structure
 
-### Prerequisites
+```
+digimon_overflow/
+├── challenge.yml          # picoCTF/CMGR challenge metadata
+├── metadata.yml           # CMGR build and deployment config
+├── problem.md             # Player-facing challenge description
+├── Dockerfile             # Container build configuration
+├── Makefile              # Binary compilation rules
+├── digimon.c              # Source code (provided as artifact)
+├── digimon                # Compiled binary (artifact)
+├── flag.txt               # Flag template (CMGR provides actual flag)
+├── solver/
+│   └── solve.py           # Automated solver for CMGR testing
+├── agumon.txt             # ASCII art assets
+├── greymon.txt
+├── wargreymon.txt
+└── README.md              # This file
+```
+
+## Quick Start
+
+### For CMGR Deployment
+
 ```bash
-# Required tools
-- gcc
-- make
-- gdb (optional, for analysis)
-- python3 (for solution script)
-- docker (optional, for deployment)
+# Build the challenge
+cmgr build /path/to/digimon_overflow
+
+# Test with automated solver
+cmgr test /path/to/digimon_overflow
+
+# Interactive playtest
+cmgr playtest /path/to/digimon_overflow
 ```
 
-### Setup
+### Manual Docker Testing
+
 ```bash
-# 1. Clone or download the challenge files
-cd digimon-challenge
-
-# 2. Run the setup script
-chmod +x setup-challenge.py
-python3 setup-challenge.py
-
-# 3. Test the challenge locally
-./digimon
-```
-
-## 📁 Repository Structure
-
-```
-digimon-challenge/
-├── digimon.c              # Source code (vulnerable program)
-├── digimon                # Compiled binary (generated)
-├── flag.txt               # Challenge flag (generated)
-├── problem.md             # Challenge description for players
-├── solution.py            # Detailed exploitation walkthrough
-├── setup-challenge.py     # Environment setup script
-├── Dockerfile             # Container deployment
-├── Makefile              # Build configuration
-└── README.md             # This file
-```
-
-## 🔧 Usage
-
-### Local Testing
-```bash
-# Compile the binary
-make
-
-# Run the challenge
-./digimon
-
-# Try the interactive menu
-# Option 1: Name your Digimon
-# Option 4: Battle (triggers function pointer)
-```
-
-### Docker Deployment
-```bash
-# Build the container
-docker build -t digimon-challenge .
+# Build with custom flag
+docker build --build-arg FLAG="picoCTF{test_flag}" -t digimon-test .
 
 # Run on port 9999
-docker run -d -p 9999:9999 --name digimon digimon-challenge
+docker run -d -p 9999:9999 digimon-test
 
-# Test connection
+# Connect and test
 nc localhost 9999
 ```
 
-### Working on the Solution
-```bash
-# Interactive solution walkthrough
-python3 solution.py
+### Local Binary Testing
 
-# Follow the menu:
-# 1. Local exploitation (automatic)
-# 2. Remote exploitation (specify host/port)
-# 3. Manual exploitation steps (tutorial)
+```bash
+# Compile
+make
+
+# Run locally
+./digimon
 ```
 
-## 🎓 How It Works
+## Challenge Mechanics
+
+### Interactive Menu System
+1. **Name your Digimon** - Safe initial naming (strncpy with bounds)
+2. **Train** - Gain random experience (5-15 per session)
+3. **View Stats** - Display current Digimon status
+4. **Challenge opponent** - (Coming soon placeholder)
+5. **Exit** - Leave the Digital World
+6. **Digivolve** - Unlocks at 50+ exp ⚡ **VULNERABILITY HERE**
+
+### Exploitation Flow
+1. Name your Digimon (safe operation)
+2. Train 10 times to reach 50+ experience
+3. Trigger digivolution (option 6 appears)
+4. **During rename**: Exploit unsafe `strcpy()` to overflow heap buffer
+5. Overwrite `battle_function` pointer to redirect to `wargreymon_appears()`
+6. Capture the flag! 🏴
+
+## Technical Details
 
 ### The Vulnerability
 
-The program allocates two structures on the heap:
-
+**Safe Code** (Initial naming):
 ```c
-struct DigimonData {
-    char name[64];      // Vulnerable buffer
-    int power_level;
-    int experience;
-};
-
-struct BattleSystem {
-    int (*battle_function)();  // Function pointer - our target!
-    int evolution_stage;
-    char digital_signature[16];
-};
+char safe_name[32];
+fgets(safe_name, sizeof(safe_name), stdin);
+strncpy(digimon->name, safe_name, sizeof(digimon->name) - 1);  // SAFE
 ```
 
-The vulnerability exists in the name input:
+**Vulnerable Code** (Digivolution rename):
 ```c
-strcpy(digimon->name, input);  // No bounds checking!
+char input[256];
+fgets(input, sizeof(input), stdin);
+strcpy(digimon->name, input);  // UNSAFE - No bounds checking!
 ```
 
-### Exploitation Strategy
+### Heap Memory Layout
 
-1. **Overflow the name buffer** (64 bytes)
-2. **Overflow through the struct padding** (8 bytes)
-3. **Overwrite the function pointer** in the next heap chunk
-4. **Trigger the function** by choosing the battle option
-5. **Get redirected to omegamon_appears()** which prints the flag
-
-### Memory Layout
 ```
-[name buffer 64 bytes][power 4][exp 4][metadata][func_ptr 8][stage 4][sig 16]
-                                                  ↑
-                                                  TARGET
+┌─────────────────────────────────────────┐
+│ DigimonData (malloc #1)                 │
+├─────────────────────────────────────────┤
+│ name[64]                   (64 bytes)   │ ← Overflow starts here
+│ power_level                (4 bytes)    │
+│ experience                 (4 bytes)    │
+│ evolution_stage            (4 bytes)    │
+│ padding                    (4 bytes)    │
+├─────────────────────────────────────────┤
+│ Heap Metadata              (20 bytes)   │
+├─────────────────────────────────────────┤
+│ BattleSystem (malloc #2)                │
+├─────────────────────────────────────────┤
+│ battle_function* (TARGET)  (8 bytes)    │ ← 96 bytes from name[0]
+│ evolution_stage            (4 bytes)    │
+│ digital_signature[16]      (16 bytes)   │
+└─────────────────────────────────────────┘
 ```
 
-## 🛡️ Security Concepts Demonstrated
+**Exploitation offset:** 96 bytes from `name[0]` to `battle_function` pointer
 
-### Vulnerabilities
-- **Heap Buffer Overflow** - Unsafe `strcpy()` without bounds checking
-- **Function Pointer Hijacking** - Overwriting execution flow
-- **No Input Validation** - Menu accepts arbitrary input length
+### Addresses (No PIE)
+- `agumon_greets()`: 0x40144b (default)
+- `wargreymon_appears()`: 0x401316 (target)
 
-### Mitigations NOT Present (Intentionally for Educational Purposes)
-- ❌ No ASLR (Position Independent Executable disabled)
-- ❌ No stack canaries (not needed for heap exploitation)
-- ❌ No bounds checking on user input
-- ❌ No modern heap protections
+## CMGR Configuration
 
-### Real-World Context
-In production code, you would need:
-- ✅ Input validation and sanitization
-- ✅ Safe string functions (`strncpy`, `strlcpy`, or better yet, avoid C strings)
-- ✅ ASLR and PIE enabled
-- ✅ Heap protection mechanisms
-- ✅ Address sanitizers during development
+### Dockerfile
+Accepts `FLAG` as build argument (CMGR provides this):
+```dockerfile
+ARG FLAG=picoCTF{test_flag_please_ignore}
+RUN echo "${FLAG}" > /challenge/flag.txt
+```
 
-## 🔍 Debugging Tips
+### Automated Solver (solver/solve.py)
+- Connects via `CHAL_HOST` and `CHAL_PORT` environment variables
+- Performs automated exploitation
+- Writes flag to `flag` file for CMGR verification
 
-### Using GDB
+## Artifacts Provided to Players
+
+1. **digimon** - Compiled binary (ELF 64-bit, no PIE)
+2. **digimon.c** - Source code (for educational analysis)
+
+Players can analyze the source to understand the vulnerability and craft their exploit.
+
+## Debugging with GDB
+
 ```bash
-# Start GDB
+# Launch GDB
 gdb ./digimon
 
-# Set breakpoint at main
+# Find target address
+print &wargreymon_appears
+# Output: 0x401316
+
+# Set breakpoint at digivolution
 break main
-
-# Run and step through
 run
-next
+# Navigate to digivolution option
 
-# Examine heap allocations
+# Examine heap layout
 print digimon
 print battle
-print &battle->battle_function
+x/20gx digimon    # View DigimonData memory
+x/20gx battle     # View BattleSystem memory
 
-# View memory
-x/20gx digimon
-x/20gx battle
-
-# Find function address
-print &omegamon_appears
+# Calculate offset
+print (char*)&battle->battle_function - (char*)digimon->name
+# Should be 96 bytes
 ```
 
-### Finding Addresses
+## Solution Approach
+
+1. **Reconnaissance**: Use `nm` or GDB to find `wargreymon_appears` address (0x401316)
+2. **Offset Calculation**: Determine distance to function pointer (96 bytes)
+3. **Payload Crafting**:
+   ```python
+   import struct
+   payload = b"A" * 96 + struct.pack('<Q', 0x401316)
+   ```
+4. **Exploitation**: Send payload during digivolution rename
+5. **Flag Capture**: WarGreymon appears with flag!
+
+## Educational Value
+
+This challenge demonstrates:
+- **Secure vs Insecure**: `strncpy()` (safe) vs `strcpy()` (unsafe)
+- **Heap Exploitation**: Beyond traditional stack-based overflows
+- **Control Flow Hijacking**: Function pointer redirection
+- **Null Byte Handling**: Partial pointer overwrite with `strcpy()`
+- **Realistic CTF Design**: Progressive difficulty with gameplay elements
+
+## Troubleshooting
+
+### Docker Build Issues
 ```bash
-# Method 1: objdump
-objdump -d digimon | grep omegamon_appears
+# Check Dockerfile syntax
+docker build --no-cache -t digimon-test .
 
-# Method 2: nm
-nm digimon | grep omegamon
-
-# Method 3: readelf
-readelf -s digimon | grep omegamon
+# Verify flag file
+docker run --rm digimon-test cat /challenge/flag.txt
 ```
 
-## 🏆 Solution Hints
+### Solver Issues
+```bash
+# Test solver manually
+cd solver
+CHAL_HOST=localhost CHAL_PORT=9999 python3 solve.py
 
-<details>
-<summary>Hint 1: Understanding the Exploit (Click to expand)</summary>
+# Check logs
+tail -f /var/log/cmgr/digimon_overflow.log
+```
 
-The vulnerability is in the name input. When you enter your Digimon's name, the program uses `strcpy()` which doesn't check the length. This allows you to write beyond the allocated buffer.
-</details>
+### Offset Verification
+If exploitation fails, verify the offset:
+```bash
+gcc -o test_offset -x c - << 'EOF'
+#include <stdio.h>
+#include <stdlib.h>
+struct DigimonData { char name[64]; int power_level; int experience; int evolution_stage; };
+struct BattleSystem { void (*battle_function)(); int evolution_stage; char digital_signature[16]; };
+int main() {
+    struct DigimonData *d = malloc(sizeof(struct DigimonData));
+    struct BattleSystem *b = malloc(sizeof(struct BattleSystem));
+    printf("Offset: %ld bytes\n", (char*)&b->battle_function - (char*)d->name);
+    return 0;
+}
+EOF
+./test_offset
+```
 
-<details>
-<summary>Hint 2: What to Overwrite (Click to expand)</summary>
+## Resources
 
-The goal is to overwrite the `battle_function` pointer in the `BattleSystem` structure. This pointer is called when you choose option 4 (Battle). If you can change it to point to `omegamon_appears`, you'll get the flag!
-</details>
-
-<details>
-<summary>Hint 3: Calculating the Offset (Click to expand)</summary>
-
-Use GDB to find the exact distance between the start of `digimon->name` and `battle->battle_function`. Typically this is 72 bytes (64 for name + 4 for power + 4 for exp), but verify with your system!
-</details>
-
-<details>
-<summary>Hint 4: Crafting the Payload (Click to expand)</summary>
-
-Your payload structure:
-1. 72 bytes of padding (can be 'A's)
-2. 8 bytes containing the address of `omegamon_appears` in little-endian format
-
-Use Python: `payload = b"A"*72 + p64(address)`
-</details>
-
-## 📚 Learning Resources
-
+- [CMGR Documentation](https://github.com/picoCTF/cmgr)
+- [picoCTF Problem Development](https://github.com/picoCTF/start-problem-dev)
 - [Heap Exploitation Basics](https://heap-exploitation.dhavalkapil.com/)
-- [LiveOverflow Heap Exploitation](https://www.youtube.com/playlist?list=PLhixgUqwRTjxglIswKp9mpkfPNfHkzyeN)
 - [Pwntools Documentation](https://docs.pwntools.com/)
-- [GDB Cheat Sheet](https://darkdust.net/files/GDB%20Cheat%20Sheet.pdf)
 
-## 🎮 Playing the Challenge
 
-### As a Player (CTF Participant)
-You would receive:
-- `digimon` binary
-- Connection information
-- `problem.md` description
 
-You should NOT have access to:
-- `digimon.c` source code
-- `solution.py`
-- `flag.txt`
-
-### As an Organizer (CTF Host)
-1. Run `setup-challenge.py` to generate flag and compile binary
-2. Deploy using Docker or run directly with socat
-3. Provide players with the binary and challenge description
-4. Keep the solution and flag secure
-
-## 🐛 Troubleshooting
-
-### Compilation Issues
-```bash
-# If gcc is not found
-sudo apt-get install build-essential  # Debian/Ubuntu
-brew install gcc                       # macOS
-
-# If you get permission errors
-chmod +x setup-challenge.py
-chmod +x digimon
-```
-
-### Exploitation Issues
-```bash
-# If offset is wrong, use GDB to find correct offset
-gdb ./digimon
-# (follow debugging tips above)
-
-# If addresses are different, check if PIE is disabled
-checksec digimon
-# Should show: PIE: No PIE
-```
-
-### Docker Issues
-```bash
-# If port is already in use
-docker stop digimon
-docker rm digimon
-
-# If build fails
-docker build --no-cache -t digimon-challenge .
-```
-
-## 🤝 Contributing
-
-This challenge is designed for educational purposes. Feel free to:
-- Modify the difficulty
-- Add more features
-- Create variations
-- Use in your CTF events
-
-## ⚖️ License
-
-This CTF challenge is released for educational purposes. Use responsibly and only in authorized environments.
-
-## 👤 Author
-
-Created as an educational binary exploitation challenge inspired by the Digimon series.
-
-## 🎉 Credits
-
-- Original inspiration: Pokemon Journey CTF by sspivey98
-- Theme: Digimon franchise
-- Educational purpose: Teaching heap exploitation concepts
-
+## Disclaimer
+The Digimon name, characters,and all related materials are the property of Bandai Co., Ltd. and its respective owners
 ---
 
-**⚡ Good luck, DigiDestined! May you master the Digital World! ⚡**
+**⚡ Good luck, DigiDestined! The fate of the Digital World is in your hands! ⚡**

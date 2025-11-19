@@ -1,14 +1,14 @@
-# Digimon Digital Adventure - CTF Challenge
+# Digimon Overflow - CTF Challenge
 
 ## Challenge Information
-- **Name:** Digimon Digital Adventure
+- **Name:** Digimon Overflow
 - **Category:** Binary Exploitation / Pwn
 - **Difficulty:** Medium
-- **Points:** 350
+- **Points:** 400
 
 ## Story
 
-You've been selected as a DigiDestined - chosen to partner with a Digimon and save the Digital World! Your journey begins with a small Rookie-level Digimon named **Agumon**, but legends speak of a powerful Ultimate-level Digimon named **WarGreymon** that holds incredible power.
+You've been selected as a DigiDestined - chosen to partner with a Digimon and save the Digital World! Your journey begins with a small Rookie-level Digimon named **Agumon**. You can train your digimon to be a powerful Champion-level digimon named **Greymon**, but legends speak of a powerful Mega-level Digimon named **WarGreymon** that holds incredible power.
 
 However, there's a problem... The Digital World's digivolution system seems to have some... *glitches*.
 
@@ -68,7 +68,7 @@ This challenge teaches:
 - Remote: `nc <server-ip> 9999`
 
 ## Flag Format
-`flag{...}`
+`picoCTF{...}`
 
 ---
 
