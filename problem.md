@@ -18,8 +18,8 @@ Your mission: Train your Digimon, trigger the digivolution sequence, and exploit
 
 ## Details
 
-Local: ./digimon
-Remote: nc <server-ip> 9999
+`$ nc {{server}} {{port}}`
+The program's binary can be downloaded {{url_for("digimon", "here")}}.
 
 ## Hints
 
