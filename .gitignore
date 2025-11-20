@@ -39,3 +39,5 @@ Thumbs.db
 payload
 exploit
 *.bin
+
+cmgr.db

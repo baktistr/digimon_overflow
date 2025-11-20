@@ -1,46 +1,28 @@
-FROM ubuntu:22.04
+FROM debian:bookworm-slim AS base
 
-# Accept FLAG as build argument (CMGR will provide this)
-ARG FLAG=picoCTF{test_flag_please_ignore}
-
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
-    gcc \
-    make \
-    gdb \
-    socat \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
+    gcc \
+    socat \
     && rm -rf /var/lib/apt/lists/*
 
-# Create challenge directory
-RUN mkdir /challenge
-WORKDIR /challenge
+RUN mkdir /challenge && chmod 700 /challenge
 
-# Copy challenge files
-COPY digimon.c /challenge/
-COPY Makefile /challenge/
-COPY setup-challenge.py /challenge/
+COPY digimon.c setup-challenge.py /app/
+COPY start.sh /opt/
+RUN chmod +x /opt/start.sh
 
-# Run setup script to create flag and metadata
-RUN FLAG="${FLAG}" python3 /challenge/setup-challenge.py
+WORKDIR /app/
+RUN gcc -O0 -fno-stack-protector -no-pie -w digimon.c -o digimon
+RUN tar czvf /challenge/artifacts.tar.gz digimon
 
-# Compile the binary
-RUN make
+FROM base AS challenge
+ARG FLAG=picoCTF{test_flag_please_ignore}
 
-# Create non-root user for the challenge
-RUN useradd -m -s /bin/bash ctf
+RUN FLAG="${FLAG}" python3 /app/setup-challenge.py
 
-# Set proper permissions
-RUN chown -R root:ctf /challenge && \
-    chmod 750 /challenge && \
-    chmod 640 /challenge/flag.txt && \
-    chmod 755 /challenge/digimon
-
-# Switch to ctf user
-USER ctf
-
-# Expose port for network service
 EXPOSE 9999
+# PUBLISH 9999 AS socat
 
-# Start the challenge service
-CMD ["socat", "TCP-LISTEN:9999,reuseaddr,fork", "EXEC:/challenge/digimon,pty,stderr,setsid,sigint,sane"]
+CMD ["/opt/start.sh"]
